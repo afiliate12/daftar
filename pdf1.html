@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Book Katalog Produk Interaktif</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Menggunakan PDF.js dari CDN resmi -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    body {
+        background-color: #0f172a;
+        font-family: 'Poppins', sans-serif;
+        overflow-x: hidden;
+    }
+    .bg-gradient-header {
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    }
+    .reader-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding-top: 130px; 
+        padding-bottom: 40px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .canvas-container {
+        flex-grow: 1;
+        width: 100%;
+        background-color: #1e293b;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        border-radius: 12px;
+        overflow: auto;
+        border: 2px solid #334155;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        position: relative;
+    }
+    canvas {
+        max-width: 100%;
+        height: auto;
+    }
+    .marquee-container {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        background: #1e1b4b;
+        color: #e0e7ff;
+        padding: 8px 0;
+        z-index: 39;
+        border-bottom: 2px solid #4338ca;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+    .marquee-text {
+        display: inline-block;
+        padding-left: 100%;
+        animation: marquee 20s linear infinite;
+        font-weight: 600;
+    }
+    @keyframes marquee {
+        0% { transform: translate(0, 0); }
+        100% { transform: translate(-100%, 0); }
+    }
+    #custom-alert {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 100;
+        backdrop-filter: blur(8px);
+        align-items: center;
+        justify-content: center;
+    }
+  </style>
+</head>
+<body class="text-gray-100">
+
+  <nav class="bg-slate-900/90 backdrop-blur-md text-white p-3 flex justify-between items-center shadow-2xl h-16 fixed top-0 w-full z-50 border-b border-indigo-500/30">
+    <div class="flex items-center gap-4">
+      <div class="p-2 bg-gradient-header rounded-lg shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      </div>
+      <h1 class="font-black text-xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-pink-500">E-CATALOG</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="music-toggle" class="p-2 bg-gray-800 rounded-full text-pink-500 border border-gray-700">
+        <svg id="play-icon" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+        <svg id="pause-icon" class="h-6 w-6 hidden" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="marquee-container">
+    <div class="marquee-text">🎉 PROMO SPESIAL DONAT: BELI 1 LUSIN GRATIS 2 DONAT! • HARGA MULAI RP 12.000 • PESAN SEKARANG VIA WHATSAPP 🎉</div>
+  </div>
+
+  <div class="reader-container px-4">
+    <div class="canvas-container" id="pdf-container">
+      <!-- PDF akan dirender di sini sebagai Canvas -->
+      <div id="loading-hint" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
+        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-500 mb-4"></div>
+        <p class="text-indigo-300 text-sm font-bold">Menyiapkan Katalog...</p>
+      </div>
+      <canvas id="pdf-render"></canvas>
+    </div>
+
+    <div class="mt-6 flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-indigo-500/30">
+      <button id="prev-page" class="bg-indigo-600 px-4 py-2 rounded-lg font-bold disabled:opacity-50">Sblumnya</button>
+      <span class="text-sm font-bold">Halaman <span id="page-num">0</span> dari <span id="page-count">0</span></span>
+      <button id="next-page" class="bg-indigo-600 px-4 py-2 rounded-lg font-bold disabled:opacity-50">Berikutnya</button>
+    </div>
+
+    <button onclick="orderWA()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg">
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.414 0 .004 5.412.001 12.048c0 2.123.554 4.197 1.606 6.037L0 24l6.105-1.602a11.832 11.832 0 005.94 1.586h.005c6.637 0 12.048-5.412 12.052-12.049a11.829 11.829 0 00-3.536-8.503z" />
+      </svg>
+      PESAN SEKARANG VIA WHATSAPP
+    </button>
+  </div>
+
+  <audio id="bg-music" loop>
+    <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    // Konfigurasi PDF.js Worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
+    // GUNAKAN URL PDF PUBLIK YANG MENDUKUNG CORS (Contoh PDF dummy)
+    // Jika menggunakan Drive, URL-nya harus diproses lewat proxy atau menggunakan viewer asli Drive.
+    const url = 'https://afiliate12.github.io/daftar/pdf1.pdf';
+    
+    let pdfDoc = null,
+        pageNum = 1,
+        pageIsRendering = false,
+        pageNumPending = null;
+    
+    const scale = 1.5,
+          canvas = document.getElementById('pdf-render'),
+          ctx = canvas.getContext('2d');
+    
+    // Render Halaman
+    const renderPage = num => {
+        pageIsRendering = true;
+        pdfDoc.getPage(num).then(page => {
+            const viewport = page.getViewport({ scale });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+    
+            const renderCtx = {
+                canvasContext: ctx,
+                viewport
+            };
+    
+            page.render(renderCtx).promise.then(() => {
+                pageIsRendering = false;
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+            });
+    
+            document.getElementById('page-num').textContent = num;
+            document.getElementById('loading-hint').style.display = 'none';
+        });
+    };
+    
+    // Cek Antrian Halaman
+    const queueRenderPage = num => {
+        if (pageIsRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    };
+    
+    // Navigasi
+    document.getElementById('prev-page').addEventListener('click', () => {
+        if (pageNum <= 1) return;
+        pageNum--;
+        queueRenderPage(pageNum);
+    });
+    
+    document.getElementById('next-page').addEventListener('click', () => {
+        if (pageNum >= pdfDoc.numPages) return;
+        pageNum++;
+        queueRenderPage(pageNum);
+    });
+    
+    // Load Dokumen
+    pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+        pdfDoc = pdfDoc_;
+        document.getElementById('page-count').textContent = pdfDoc.numPages;
+        renderPage(pageNum);
+    }).catch(err => {
+        document.getElementById('loading-hint').innerHTML = `
+            <p class="text-red-400 font-bold px-4 text-center">
+                Gagal memuat PDF secara langsung.<br>
+                <span class="text-xs font-normal text-gray-400">Hal ini biasanya karena kebijakan CORS server asal file.</span>
+            </p>
+        `;
+        console.error(err);
+    });
+    
+    // Musik Kontrol
+    const bgMusic = document.getElementById('bg-music');
+    const musicBtn = document.getElementById('music-toggle');
+    let isPlaying = false;
+    
+    musicBtn.addEventListener('click', () => {
+        if (isPlaying) {
+            bgMusic.pause();
+            document.getElementById('play-icon').classList.remove('hidden');
+            document.getElementById('pause-icon').classList.add('hidden');
+        } else {
+            bgMusic.play();
+            document.getElementById('play-icon').classList.add('hidden');
+            document.getElementById('pause-icon').classList.remove('hidden');
+        }
+        isPlaying = !isPlaying;
+    });
+    
+    function orderWA() {
+        window.open('https://wa.me/628123456789?text=Halo, saya ingin memesan produk dari katalog.', '_blank');
+    }
+  </script>
+</body>
+</html>
